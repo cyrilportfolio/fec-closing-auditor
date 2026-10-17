@@ -1,72 +1,82 @@
-# FEC Closing Auditor (`fec-closing-auditor`)
+# 🕵️‍♂️📊 FEC Closing Auditor (`fec-closing-auditor`)
 
-**Contrôle qualité automatisé du Fichier des Écritures Comptables (FEC — norme DGFiP, art. L.47 A-I du LPF) et dossier de révision de clôture en Python.**  
-*Automated French statutory general ledger (FEC) compliance checker and pre-closing audit engine.*
-
----
-
-## Pourquoi cet outil ? / Why this project?
-
-En cabinet d'expertise comptable comme en direction financière, la révision d'un dossier commence systématiquement par deux exigences :
-1. **La conformité formelle et substantielle du FEC** aux 18 champs réglementaires de l'article A.47 A-1 du Livre des Procédures Fiscales (LPF).
-2. **La fiabilité des cycles comptables avant clôture** : équilibre des écritures, cadrage Bilan / Résultat, cadrage de TVA (collectée vs chiffre d'affaires HT et déductible), intégrité du lettrage, absence de caisse créditrice, justification des soldes tiers inversés et détection des factures saisies en doublon.
-
-`fec-closing-auditor` automatise ces **10 contrôles** sans dépendance externe (bibliothèque standard Python 3.10+, calculs monétaires exacts en `Decimal`), et génère un **rapport de révision en Markdown** ainsi qu'un **export JSON structuré** (avec synthèse par classe PCG et balance auxiliaire des tiers).
+> **Le radar anti-boulettes pour votre Fichier des Écritures Comptables (FEC) avant la clôture.**  
+> *Zero-dependency Python demonstrator that audits a French statutory general ledger (FEC — DGFiP) and generates a clean pre-closing review report in milliseconds.*
 
 ---
 
-## Les 10 contrôles exécutés (Conformité DGFiP & Révision comptable)
+## 🎯 Le pitch en 30 secondes
 
-| Code | Catégorie | Contrôle | Référence / Objectif |
-|---|---|---|---|
-| **C01** | Conformité DGFiP | Présence des **18 colonnes obligatoires**, champs obligatoires non vides par ligne et montants positifs | Art. A.47 A-1 LPF |
-| **C02** | Intégrité | **Équilibre global** du grand livre ($\sum \text{Débit} = \sum \text{Crédit}$ au centime près) | Principe de la partie double |
-| **C03** | Intégrité | **Équilibre par pièce comptable** (`JournalCode` + `EcritureNum`) | Détection d'écritures déséquilibrées |
-| **C04** | Chronologie | Validité calendaire `YYYYMMDD` (`EcritureDate`, `PieceDate`, `ValidDate`, `DateLet`) et `ValidDate >= EcritureDate` | Intangibilité des écritures |
-| **C05** | Trésorerie | Contrôle du **sens du solde de caisse** (`53x` ne peut jamais être créditeur) | Anomalie fiscale bloquante |
-| **C06** | Fiscalité / TVA | **Cadrage TVA collectée (`44571x`) vs CA HT (`70x`)** et synthèse TVA déductible (`44562x` / `44566x`) | Cohérence du taux effectif & liquidation |
-| **C07** | Révision | **Concordance Bilan (Classes 1 à 5) vs Compte de Résultat (Classes 6 et 7)** | Exactitude du résultat net |
-| **C08** | Tiers / Fraude | **Détection de doublons potentiels** sur factures tiers (`401x`/`411x`, même `CompAuxNum`, même montant TTC > 0) | Prévention des doubles règlements |
-| **C09** | Révision Tiers | **Intégrité et équilibre du lettrage** ($\sum D_{\text{let}} = \sum C_{\text{let}}$ par code `EcritureLet` et présence de `DateLet`) | Justification des comptes courants |
-| **C10** | Révision Tiers | **Détection des soldes auxiliaires inversés** (fournisseurs `401x` débiteurs / clients `411x` créditeurs) | Reclassements de clôture (`4091`/`4191`) |
+En cabinet d'expertise comptable ou en direction financière, ouvrir un FEC de 50 000 lignes à la veille d'une clôture (ou d'un contrôle fiscal), c'est souvent chercher une aiguille dans une botte de foin :
+- *« Est-ce que les 18 colonnes DGFiP sont vraiment toutes là et remplies ? »*
+- *« Pourquoi la caisse est créditrice de 250 € au mois de janvier ?! »*
+- *« Tiens, on n'aurait pas saisi deux fois la facture de Cloud Compute Europe ? »*
+- *« La TVA collectée colle-t-elle vraiment au chiffre d'affaires HT ? »*
+
+**`fec-closing-auditor`** est un démonstrateur léger en Python pur (zéro dépendance externe, calculs au centime près avec `Decimal`) qui passe votre grand livre au scanner à travers **10 contrôles de conformité DGFiP et de révision comptable** et crache un dossier de travail propre en **Markdown** ou en **JSON**.
 
 ---
 
-## Utilisation rapide / Quickstart
+## 🚀 Tester le démonstrateur en 1 commande
+
+Aucune installation de librairie requise (Python 3.10+ suffit) :
 
 ```bash
-# 1. Lancer l'audit sur le FEC de démonstration et générer le rapport Markdown
-python3 -m fec_auditor data/sample_fec_2026.tsv --output reports/example_audit_report.md
+# 1. Scanner le FEC de démo et afficher le rapport de révision dans le terminal
+python3 -m fec_auditor data/sample_fec_2026.tsv
 
-# 2. Générer simultanément le rapport Markdown et l'export JSON
-python3 -m fec_auditor data/sample_fec_2026.tsv -o reports/example_audit_report.md --json reports/audit.json
+# 2. Sauvegarder le rapport Markdown + l'export JSON structuré
+python3 -m fec_auditor data/sample_fec_2026.tsv \
+  --output reports/example_audit_report.md \
+  --json reports/audit.json
 
-# 3. Exécuter la suite de 10 tests unitaires
+# 3. Lancer les 10 tests unitaires (conformité, caisse créditrice, doublons, lettrage...)
 python3 -m unittest discover -s tests -v
 ```
 
+👉 **Envie de voir le résultat tout de suite ?** Consultez directement l'exemple généré : [`reports/example_audit_report.md`](reports/example_audit_report.md).
+
 ---
 
-## Structure du dépôt
+## 🔍 Les 10 contrôles sous le capot
+
+Chaque fichier FEC passe par 10 points de contrôle classés en 3 niveaux (`PASS`, `WARN`, `ERROR`) :
+
+| Code | Niveau | Ce que le radar vérifie | Pourquoi ça sauve votre clôture |
+|---|---|---|---|
+| **C01** | `ERROR` | **Structure DGFiP (18 colonnes)**, champs obligatoires non vides & montants $\ge 0$ | Évite le rejet immédiat du FEC (art. A.47 A-1 du LPF). |
+| **C02** | `ERROR` | **Équilibre global** ($\sum \text{Débit} = \sum \text{Crédit}$) | La base de la partie double : pas un centime d'écart toléré. |
+| **C03** | `ERROR` | **Équilibre par pièce** (`JournalCode` + `EcritureNum`) | Repère immédiatement une écriture boiteuse. |
+| **C04** | `ERROR` | **Chronologie & Dates** (`YYYYMMDD` valides et `ValidDate >= EcritureDate`) | Garantit l'intangibilité chronologique des écritures. |
+| **C05** | `ERROR` | **Sens de la Caisse (`53x`)** | Une caisse espèces ne peut pas être négative (anomalie fiscale classique). |
+| **C06** | `WARN` | **Cadrage TVA collectée (`44571`) / CA HT (`70x`)** + synthèse TVA déductible | Vérifie d'un coup d'œil la cohérence du taux effectif de TVA. |
+| **C07** | `ERROR` | **Concordance Bilan (cl. 1–5) vs Résultat (cl. 6–7)** | Confirme que le résultat net au bilan égale Produits − Charges. |
+| **C08** | `WARN` | **Chasse aux doublons de factures tiers (`401`/`411`)** | Détecte deux factures pour le même tiers avec le même montant TTC. |
+| **C09** | `WARN` | **Intégrité du lettrage** ($\sum D_{\text{let}} = \sum C_{\text{let}}$ & `DateLet`) | Repère les lettrages partiels ou non équilibrés. |
+| **C10** | `WARN` | **Soldes tiers inversés** (fournisseurs débiteurs / clients créditeurs) | Prépare la liste des reclassements de clôture (`4091` / `4191`). |
+
+---
+
+## 📦 Ce que contient le dépôt
 
 ```text
 fec-closing-auditor/
-├── pyproject.toml           # Métadonnées PEP 621 & point d'entrée CLI fec-auditor
 ├── fec_auditor/
-│   ├── __init__.py
-│   ├── __main__.py          # Interface CLI (--output Markdown, --json JSON)
-│   └── auditor.py           # Moteur de validation DGFiP, 10 contrôles & restitutions PCG/Tiers
+│   ├── auditor.py           # 🧠 Le moteur des 10 contrôles + calcul des balances PCG & Tiers
+│   └── __main__.py          # 💻 L'interface en ligne de commande (--output, --json)
 ├── data/
-│   └── sample_fec_2026.tsv  # Jeu d'essai FEC réaliste (AN, HA, VT, BQ, OD)
+│   └── sample_fec_2026.tsv  # 📄 Un mini-FEC réaliste (ouverture AN, achats HA, ventes VT, banque BQ, OD)
 ├── reports/
-│   └── example_audit_report.md
+│   └── example_audit_report.md # 📋 Exemple de feuille de révision générée automatiquement
 └── tests/
-    └── test_auditor.py      # 10 tests unitaires couvrant chaque contrôle et cas d'erreur
+    └── test_auditor.py      # 🧪 10 tests unitaires qui simulent les vraies erreurs de saisie
 ```
 
 ---
 
-## Auteur / Author
+## 👋 À propos de l'auteur
 
-**Cyril ANTOINE** — Comptable financier & Spécialiste Automatisation / IA  
-- [LinkedIn](https://www.linkedin.com/in/cyrilantoine/) · [GitHub (@cyrilportfolio)](https://github.com/cyrilportfolio)
+Créé par **Cyril ANTOINE** — Comptable financier (18+ ans d'expérience) qui embarque sur la vague de l'automatisation Python et des agents IA 🌊🤖.
+
+- 🔗 [LinkedIn](https://www.linkedin.com/in/cyrilantoine/)
+- 💻 [Autres projets Finance & Python sur GitHub (`@cyrilportfolio`)](https://github.com/cyrilportfolio)
