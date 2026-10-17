@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fec-closing-auditor"
+version = "0.2.0"
+description = "Contrôle qualité automatisé du Fichier des Écritures Comptables (FEC — norme DGFiP, art. L.47 A-I du LPF) et dossier de révision de clôture en Python."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+  { name = "Cyril ANTOINE", email = "cyrilantoine@gmail.com" }
+]
+keywords = ["accounting", "fec", "dgfip", "pcg", "audit", "finance", "closing", "vat"]
+dependencies = []
+
+[project.scripts]
+fec-auditor = "fec_auditor.__main__:main"
