@@ -1,6 +1,6 @@
 # 🕵️‍♂️📊 FEC Closing Auditor (`fec-closing-auditor`)
 
-> **Le radar anti-boulettes pour votre Fichier des Écritures Comptables (FEC) avant la clôture.**  
+> **Le radar anti-erreurs pour votre Fichier des Écritures Comptables (FEC) avant la clôture.**  
 > *Zero-dependency Python demonstrator that audits a French statutory general ledger (FEC — DGFiP) and generates a clean pre-closing review report in milliseconds.*
 
 ---
