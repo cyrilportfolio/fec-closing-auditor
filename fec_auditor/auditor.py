@@ -356,6 +356,37 @@ def audit_fec_lines(lines: Iterable[str], source_name: str = "memory") -> AuditR
             )
         )
 
+    # C08: Potential duplicate invoices on Auxiliary Accounts (401x / 411x)
+    seen_aux: dict[tuple[str, str, Decimal, Decimal], list[str]] = defaultdict(list)
+    for r in rows:
+        if r.comp_aux_num and r.journal_code in ("HA", "VT", "AC", "VE"):
+            seen_aux[(r.journal_code, r.comp_aux_num, r.debit, r.credit)].append(
+                f"{r.ecriture_num} ({r.piece_ref} du {r.ecriture_date})"
+            )
+    duplicates = [
+        f"{aux} ({max(deb, cred):,.2f} €) : {' vs '.join(refs)}"
+        for (_, aux, deb, cred), refs in seen_aux.items()
+        if len(refs) > 1
+    ]
+    if not duplicates:
+        findings.append(
+            AuditFinding(
+                code="C08",
+                severity="PASS",
+                title="Détection de doublons de factures tiers",
+                details="Aucun doublon potentiel (même tiers + même montant TTC) détecté sur les journaux HA/VT.",
+            )
+        )
+    else:
+        findings.append(
+            AuditFinding(
+                code="C08",
+                severity="WARN",
+                title="Détection de doublons de factures tiers",
+                details="Doublons potentiels à vérifier : " + " ; ".join(duplicates[:5]),
+            )
+        )
+
     return AuditReport(
         source_name=source_name,
         row_count=len(rows),
@@ -374,3 +405,54 @@ def audit_fec_file(path: str | Path) -> AuditReport:
     file_path = Path(path)
     with file_path.open("r", encoding="utf-8") as fh:
         return audit_fec_lines(fh, source_name=file_path.name)
+
+
+def render_markdown_report(report: AuditReport) -> str:
+    badge = {"PASS": "PASS", "WARN": "WARN", "ERROR": "ERROR"}
+    lines = [
+        f"# Rapport de Contrôle FEC & Révision — `{report.source_name}`",
+        "",
+        "## 1. Synthèse Générale",
+        "",
+        f"- **Lignes d'écritures analysées** : {report.row_count}",
+        f"- **Total Débit** : `{report.total_debit:,.2f} €`",
+        f"- **Total Crédit** : `{report.total_credit:,.2f} €`",
+        f"- **Chiffre d'affaires HT (cl. 70)** : `{report.turnover_ht:,.2f} €`",
+        f"- **TVA collectée (44571)** : `{report.vat_collected:,.2f} €`",
+        f"- **Résultat net (Produits − Charges)** : `{report.gestion_result:+,.2f} €`",
+        f"- **Statut de l'audit** : **{report.error_count} erreur(s)**, **{report.warning_count} alerte(s)**",
+        "",
+        "## 2. Résultats des 8 Contrôles",
+        "",
+        "| Code | Statut | Contrôle | Détail |",
+        "|---|---|---|---|",
+    ]
+    for f in report.findings:
+        lines.append(f"| **{f.code}** | `{badge.get(f.severity, f.severity)}` | {f.title} | {f.details} |")
+
+    if report.class_balances:
+        lines.extend(
+            [
+                "",
+                "## 3. Synthèse par Classe du Plan Comptable Général (PCG)",
+                "",
+                "| Classe PCG | Total Débit (€) | Total Crédit (€) | Solde (D − C) (€) |",
+                "|---|---:|---:|---:|",
+            ]
+        )
+        labels = {
+            "1": "Classe 1 — Capitaux",
+            "2": "Classe 2 — Immobilisations",
+            "3": "Classe 3 — Stocks",
+            "4": "Classe 4 — Tiers",
+            "5": "Classe 5 — Financiers",
+            "6": "Classe 6 — Charges",
+            "7": "Classe 7 — Produits",
+        }
+        for cls, (deb, cred) in sorted(report.class_balances.items()):
+            solde = deb - cred
+            lines.append(f"| {labels.get(cls, cls)} | {deb:,.2f} | {cred:,.2f} | {solde:+,.2f} |")
+
+    lines.append("")
+    return "\n".join(lines)
+
